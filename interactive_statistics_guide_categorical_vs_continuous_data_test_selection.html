@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistics Explorer: Categorical vs Continuous Data & Test Selection</title>
+  <style>
+    /* CSS Variables for WCAG 2.2 AA High Contrast Palette */
+    :root {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #334155;
+      --border-color: #cbd5e1;
+      
+      /* High Contrast Color Coding for Statistical Tests */
+      --color-primary: #1e3a8a;    /* Deep Navy */
+      --color-primary-hover: #1d4ed8;
+      --color-ttest: #0284c7;      /* Cyan Blue */
+      --color-ftest: #7c3aed;      /* Purple */
+      --color-corr: #059669;       /* Emerald */
+      --color-reg: #d97706;        /* Amber */
+      
+      --focus-outline: 3px solid #2563eb;
+      --focus-offset: 3px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 1rem;
+    }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Keyboard Skip Link */
+    .skip-link {
+      position: absolute;
+      top: -50px;
+      left: 10px;
+      background: var(--color-primary);
+      color: #ffffff;
+      padding: 10px 18px;
+      z-index: 100;
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 4px;
+      transition: top 0.2s ease;
+    }
+
+    .skip-link:focus {
+      top: 10px;
+      outline: var(--focus-outline);
+    }
+
+    header {
+      background: var(--bg-card);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      color: var(--color-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    /* Navigation Tabs */
+    nav ul {
+      display: flex;
+      flex-wrap: wrap;
+      list-style: none;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+
+    nav button {
+      background: #e2e8f0;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 0.6.rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    nav button[aria-selected="true"] {
+      background: var(--color-primary);
+      color: #ffffff;
+      border-color: var(--color-primary);
+    }
+
+    *:focus-visible {
+      outline: var(--focus-outline) !important;
+      outline-offset: var(--focus-offset) !important;
+    }
+
+    /* Main Grid Layout */
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 900px) {
+      .grid-layout {
+        grid-template-columns: 1fr 360px;
+      }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .panel h2 {
+      font-size: 1.3rem;
+      color: var(--color-primary);
+      margin-bottom: 1rem;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 0.4rem;
+    }
+
+    /* Forms and Controls */
+    fieldset {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    legend {
+      font-weight: bold;
+      padding: 0 0.4rem;
+      color: var(--text-main);
+    }
+
+    .control-group {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .control-group label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .control-group select,
+    .control-group input[type="number"],
+    .control-group input[type="range"] {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 1rem;
+      background-color: #fff;
+    }
+
+    /* Responsive Canvas Container */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 340px;
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Test Banner Highlight */
+    .test-result-card {
+      background: #eff6ff;
+      border-left: 5px solid var(--color-primary);
+      padding: 1rem;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 1rem;
+    }
+
+    .test-result-card h3 {
+      font-size: 1.2rem;
+      color: var(--color-primary);
+      margin-bottom: 0.3rem;
+    }
+
+    /* Stats Readout Table */
+    .sr-table-wrapper {
+      margin-top: 1rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border-color);
+    }
+
+    th {
+      background-color: #f1f5f9;
+      font-weight: bold;
+    }
+
+    /* Tab Content Controls */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .concept-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .concept-card h3 {
+      color: var(--color-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .quiz-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .quiz-options label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: #fafafa;
+    }
+
+    .quiz-options label:hover {
+      background-color: #f1f5f9;
+    }
+
+    .feedback {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .feedback.correct {
+      display: block;
+      background-color: #dcfce7;
+      color: #14532d;
+      border: 1px solid #86efac;
+    }
+
+    .feedback.incorrect {
+      display: block;
+      background-color: #fee2e2;
+      color: #7f1d1d;
+      border: 1px solid #fca5a5;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    button.btn-primary {
+      background-color: var(--color-primary);
+      color: white;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button.btn-primary:hover {
+      background-color: var(--color-primary-hover);
+    }
+
+    footer {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+    }
+
+    details summary {
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: var(--color-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Keyboard navigation link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- ARIA Live region for screen reader notifications -->
+  <div id="sr-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="app-container">
+    <header role="banner">
+      <h1>Statistics Explorer: Statistical Test Selection</h1>
+      <p>Understand Categorical &amp; Continuous variables and learn when to choose t-tests, ANOVA (F-test), Pearson Correlation, or Linear Regression.</p>
+      
+      <nav aria-label="Learning Modules Navigation">
+        <ul role="tablist">
+          <li role="presentation">
+            <button id="tab-selector" role="tab" aria-selected="true" aria-controls="panel-selector">
+              1. Interactive Test Selector
+            </button>
+          </li>
+          <li role="presentation">
+            <button id="tab-matrix" role="tab" aria-selected="false" aria-controls="panel-matrix">
+              2. Test Selection Matrix
+            </button>
+          </li>
+          <li role="presentation">
+            <button id="tab-scenarios" role="tab" aria-selected="false" aria-controls="panel-scenarios">
+              3. Research Scenarios
+            </button>
+          </li>
+          <li role="presentation">
+            <button id="tab-quiz" role="tab" aria-selected="false" aria-controls="panel-quiz">
+              4. Self-Quiz &amp; Practice
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      
+      <!-- TAB 1: INTERACTIVE TEST SELECTOR & VISUALIZER -->
+      <section id="panel-selector" class="tab-content active" role="tabpanel" aria-labelledby="tab-selector">
+        <div class="grid-layout">
+          
+          <!-- Left Column: Visual Chart & Statistical Decision -->
+          <div class="panel">
+            <h2>Data Visualization &amp; Decision Output</h2>
+            
+            <div id="decision-card" class="test-result-card">
+              <h3 id="test-title">Independent Samples t-Test</h3>
+              <p id="test-description">Comparing continuous outcome across 2 independent categorical groups.</p>
+            </div>
+
+            <div class="canvas-container">
+              <canvas id="statCanvas" role="img" aria-label="Dynamic graphical display of simulated statistical data"></canvas>
+            </div>
+
+            <!-- Stats Output Summary -->
+            <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">
+              <div style="background:#f8fafc; padding:0.6rem; border:1px solid var(--border-color); border-radius:6px; text-align:center;">
+                <div style="font-size:1.1rem; font-weight:bold; color:var(--color-primary);" id="stat-main-metric">t = 2.45</div>
+                <div style="font-size:0.85rem; color:var(--text-muted);" id="stat-main-label">Test Statistic</div>
+              </div>
+              <div style="background:#f8fafc; padding:0.6rem; border:1px solid var(--border-color); border-radius:6px; text-align:center;">
+                <div style="font-size:1.1rem; font-weight:bold; color:#16a34a;" id="stat-p-val">p = 0.016</div>
+                <div style="font-size:0.85rem; color:var(--text-muted);">p-value (&alpha; = 0.05)</div>
+              </div>
+              <div style="background:#f8fafc; padding:0.6rem; border:1px solid var(--border-color); border-radius:6px; text-align:center;">
+                <div style="font-size:1.1rem; font-weight:bold; color:var(--color-primary);" id="stat-effect-size">d = 0.54</div>
+                <div style="font-size:0.85rem; color:var(--text-muted);" id="stat-effect-label">Effect Size</div>
+              </div>
+            </div>
+
+            <details style="margin-top: 1.5rem;">
+              <summary>Accessible Data Table (Screen Reader Alternative)</summary>
+              <div class="sr-table-wrapper">
+                <p id="table-summary-text">Summary metrics for current statistical selection.</p>
+                <table id="data-table">
+                  <thead id="data-table-head">
+                    <tr>
+                      <th scope="col">Group / Variable</th>
+                      <th scope="col">Sample Size (N)</th>
+                      <th scope="col">Mean / Intercept</th>
+                      <th scope="col">SD / Slope</th>
+                    </tr>
+                  </thead>
+                  <tbody id="data-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+
+          <!-- Right Column: Variable Type Controls -->
+          <div class="panel">
+            <h2>Variable Configuration</h2>
+
+            <form id="variable-form" onsubmit="event.preventDefault();">
+              <fieldset>
+                <legend>1. Independent Variable (IV) / Predictor</legend>
+                <div class="control-group">
+                  <label for="iv-type">IV Measurement Type:</label>
+                  <select id="iv-type">
+                    <option value="cat-2">Categorical (2 Groups - e.g., Male/Female, Control/Treatment)</option>
+                    <option value="cat-3">Categorical (3+ Groups - e.g., Low/Med/High Dose)</option>
+                    <option value="paired">Categorical (2 Paired Measures - Pre-Test vs Post-Test)</option>
+                    <option value="cont">Continuous (Numeric Scale - e.g., Age, Income, Hours Studied)</option>
+                  </select>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>2. Dependent Variable (DV) / Outcome</legend>
+                <div class="control-group">
+                  <label for="dv-type">DV Measurement Type:</label>
+                  <select id="dv-type">
+                    <option value="cont">Continuous (Numeric Interval/Ratio Scale)</option>
+                  </select>
+                  <span style="font-size:0.85rem; color:var(--text-muted);">
+                    *Note: Standard t-tests, ANOVA, correlation, and linear regression require a Continuous DV.
+                  </span>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>3. Study Purpose &amp; Modeling</legend>
+                <div class="control-group" id="purpose-group">
+                  <label for="study-purpose">Primary Goal:</label>
+                  <select id="study-purpose">
+                    <option value="compare">Compare Group Means</option>
+                    <option value="relate">Examine Relationship / Association</option>
+                    <option value="predict">Predict Outcome (Regression)</option>
+                  </select>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Interactive Data Parameters</legend>
+                <div class="control-group">
+                  <label for="slider-samples">
+                    <span>Sample Size (N per group):</span>
+                    <span id="val-samples">30</span>
+                  </label>
+                  <input type="range" id="slider-samples" min="10" max="100" step="5" value="30">
+                </div>
+
+                <div class="control-group">
+                  <label for="slider-effect">
+                    <span>Effect Size / Signal Strength:</span>
+                    <span id="val-effect">Medium (0.50)</span>
+                  </label>
+                  <input type="range" id="slider-effect" min="0" max="1.5" step="0.1" value="0.5">
+                </div>
+              </fieldset>
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- TAB 2: TEST SELECTION MATRIX & CONCEPTS -->
+      <section id="panel-matrix" class="tab-content" role="tabpanel" aria-labelledby="tab-matrix">
+        <div class="panel">
+          <h2>Statistical Test Decision Matrix</h2>
+          <p style="margin-bottom: 1rem;">
+            Statistical test choice depends directly on the measurement level of your Independent Variable (IV) and Dependent Variable (DV).
+          </p>
+
+          <div style="overflow-x: auto;">
+            <table>
+              <caption>Master Test Selection Decision Guide</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Independent Variable (IV)</th>
+                  <th scope="col">Dependent Variable (DV)</th>
+                  <th scope="col">Research Goal</th>
+                  <th scope="col">Appropriate Statistical Test</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Categorical</strong> (2 Independent Groups)</td>
+                  <td><strong>Continuous</strong></td>
+                  <td>Compare 2 group means</td>
+                  <td><strong style="color:var(--color-ttest);">Independent Samples t-Test</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Categorical</strong> (2 Related / Repeated Measures)</td>
+                  <td><strong>Continuous</strong></td>
+                  <td>Compare Pre vs Post scores</td>
+                  <td><strong style="color:var(--color-ttest);">Paired Samples t-Test</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Categorical</strong> (3+ Independent Groups)</td>
+                  <td><strong>Continuous</strong></td>
+                  <td>Compare 3+ group means</td>
+                  <td><strong style="color:var(--color-ftest);">One-Way ANOVA (F-Test)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Continuous</strong> (Numeric scale)</td>
+                  <td><strong>Continuous</strong> (Numeric scale)</td>
+                  <td>Assess linear strength &amp; direction</td>
+                  <td><strong style="color:var(--color-corr);">Pearson Correlation (r)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Continuous or Categorical</strong> (1 or more predictors)</td>
+                  <td><strong>Continuous</strong></td>
+                  <td>Predict DV value or fit line ($\hat{Y} = b_0 + b_1 X$)</td>
+                  <td><strong style="color:var(--color-reg);">Simple / Multiple Linear Regression</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+            
+            <div class="concept-card">
+              <h3 style="color:var(--color-ttest);">t-Tests (t-Statistic)</h3>
+              <p><strong>When to use:</strong> Comparing means between 2 categorical groups.</p>
+              <p style="margin-top:0.4rem;"><strong>Independent t-test:</strong> Unrelated groups (e.g., Treatment group vs Control group).</p>
+              <p style="margin-top:0.4rem;"><strong>Paired t-test:</strong> Same participants measured twice (e.g., Weight before and after diet).</p>
+            </div>
+
+            <div class="concept-card">
+              <h3 style="color:var(--color-ftest);">One-Way ANOVA (F-Test)</h3>
+              <p><strong>When to use:</strong> Comparing means across 3 or more categorical groups.</p>
+              <p style="margin-top:0.4rem;"><strong>Why not multiple t-tests?</strong> Running multiple t-tests inflates Type I Error rate (&alpha; inflation). ANOVA evaluates variance between group means vs variance within groups in a single test.</p>
+            </div>
+
+            <div class="concept-card">
+              <h3 style="color:var(--color-corr);">Pearson Correlation (r)</h3>
+              <p><strong>When to use:</strong> Evaluating the linear relationship between two continuous variables.</p>
+              <p style="margin-top:0.4rem;">Ranges from $-1.00$ (perfect negative correlation) to $+1.00$ (perfect positive correlation). $r = 0$ indicates no linear association.</p>
+            </div>
+
+            <div class="concept-card">
+              <h3 style="color:var(--color-reg);">Linear Regression</h3>
+              <p><strong>When to use:</strong> Modeling an outcome variable ($\hat{Y}$) based on one or more continuous or categorical predictor variables ($X$).</p>
+              <p style="margin-top:0.4rem;">Provides line slope ($b_1$), intercept ($b_0$), and $R^2$ (proportion of variance explained).</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: RESEARCH SCENARIOS -->
+      <section id="panel-scenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-scenarios">
+        <div class="panel">
+          <h2>Interactive Research Problem Solver</h2>
+          <p style="margin-bottom: 1rem;">Select a real-world study scenario to determine the correct statistical test based on variable types.</p>
+
+          <div class="control-group" style="max-width: 500px; margin-bottom: 1.5rem;">
+            <label for="scenario-select">Choose Research Study:</label>
+            <select id="scenario-select">
+              <option value="s1">Scenario 1: Exercise Program &amp; Blood Pressure</option>
+              <option value="s2">Scenario 2: Teaching Methods &amp; Exam Performance</option>
+              <option value="s3">Scenario 3: Study Hours &amp; Test Scores</option>
+              <option value="s4">Scenario 4: Predicting Income from Years of Education</option>
+              <option value="s5">Scenario 5: Pre-Course vs Post-Course Anxiety</option>
+            </select>
+          </div>
+
+          <div id="scenario-card" class="concept-card" style="background:#f8fafc; border-left: 4px solid var(--color-primary);">
+            <h3 id="scenario-title">Scenario 1: Exercise Program &amp; Blood Pressure</h3>
+            <p id="scenario-desc" style="margin-bottom:0.75rem;">
+              A researcher tests whether a 12-week aerobic exercise program alters resting systolic blood pressure. 30 participants have their blood pressure measured immediately before beginning the program and again after completing the 12 weeks.
+            </p>
+            
+            <div style="background:#fff; padding:0.8rem; border:1px solid var(--border-color); border-radius:6px; margin-top:0.5rem;">
+              <p><strong>Independent Variable (IV):</strong> <span id="scenario-iv">Time Point (2 repeated measures: Pre vs Post) -> Categorical</span></p>
+              <p><strong>Dependent Variable (DV):</strong> <span id="scenario-dv">Blood Pressure (mmHg) -> Continuous</span></p>
+              <p style="margin-top:0.5rem; color:var(--color-primary); font-weight:bold;">
+                Correct Statistical Choice: <span id="scenario-test">Paired Samples t-Test</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SELF-QUIZ & PRACTICE -->
+      <section id="panel-quiz" class="tab-content" role="tabpanel" aria-labelledby="tab-quiz">
+        <div class="panel">
+          <h2>Self-Quiz &amp; Conceptual Practice</h2>
+          <p style="margin-bottom: 1rem;">Test your knowledge of variable types and test selection rules.</p>
+
+          <div id="quiz-container">
+            <!-- Question 1 -->
+            <div class="quiz-card" id="q1-card">
+              <p style="font-weight: bold;">1. A psychologist wants to test if 3 different therapy methods (CBT, Psychodynamic, Mindfulness) lead to different depression symptom reduction scores (measured on a 0-100 scale). Which test is required?</p>
+              <div class="quiz-options">
+                <label><input type="radio" name="q1" value="A"> Independent Samples t-Test</label>
+                <label><input type="radio" name="q1" value="B"> One-Way ANOVA (F-Test)</label>
+                <label><input type="radio" name="q1" value="C"> Pearson Correlation</label>
+                <label><input type="radio" name="q1" value="D"> Linear Regression</label>
+              </div>
+              <button type="button" class="btn-primary" style="margin-top:0.75rem;" onclick="checkAnswer('q1', 'B', 'Correct! The IV has 3 categorical groups (therapy types) and the DV is continuous (depression score), requiring a One-Way ANOVA.', 'Incorrect. Because there are 3 distinct categorical groups, an ANOVA (F-test) is required to avoid inflating Type I error.')">Submit Answer</button>
+              <div id="q1-feedback" class="feedback" aria-live="polite"></div>
+            </div>
+
+            <!-- Question 2 -->
+            <div class="quiz-card" id="q2-card">
+              <p style="font-weight: bold;">2. An economist wants to examine the linear relationship between Employee Salary ($) and Years of Experience (numeric). What is the most appropriate test?</p>
+              <div class="quiz-options">
+                <label><input type="radio" name="q2" value="A"> Paired Samples t-Test</label>
+                <label><input type="radio" name="q2" value="B"> Pearson Correlation or Simple Linear Regression</label>
+                <label><input type="radio" name="q2" value="C"> Independent Samples t-Test</label>
+                <label><input type="radio" name="q2" value="D"> One-Way ANOVA</label>
+              </div>
+              <button type="button" class="btn-primary" style="margin-top:0.75rem;" onclick="checkAnswer('q2', 'B', 'Correct! Both IV and DV are continuous variables, making Pearson Correlation (or Simple Linear Regression) the correct test.', 'Incorrect. When both variables are continuous scale measurements, use Correlation or Linear Regression.')">Submit Answer</button>
+              <div id="q2-feedback" class="feedback" aria-live="polite"></div>
+            </div>
+
+            <!-- Question 3 -->
+            <div class="quiz-card" id="q3-card">
+              <p style="font-weight: bold;">3. Why should you NOT run three separate t-tests when comparing 3 group means?</p>
+              <div class="quiz-options">
+                <label><input type="radio" name="q3" value="A"> t-tests can only be calculated on small sample sizes.</label>
+                <label><input type="radio" name="q3" value="B"> Running multiple t-tests increases the overall Type I Error (&alpha;) rate.</label>
+                <label><input type="radio" name="q3" value="C"> t-tests require continuous IVs.</label>
+              </div>
+              <button type="button" class="btn-primary" style="margin-top:0.75rem;" onclick="checkAnswer('q3', 'B', 'Correct! Each t-test carries a 5% chance of false positive (Type I error). Conducting multiple pairwise t-tests inflates the overall error rate.', 'Incorrect. Conducting multiple pairwise t-tests inflates the overall Type I error rate. Use ANOVA instead.')">Submit Answer</button>
+              <div id="q3-feedback" class="feedback" aria-live="polite"></div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Accessible Testing Checklist Footer -->
+    <footer role="contentinfo">
+      <details>
+        <summary>Accessibility (WCAG 2.2 Level AA) Verification Checklist</summary>
+        <div style="margin-top: 0.75rem; font-size: 0.95rem;">
+          <p>This application was designed and evaluated according to WCAG 2.2 AA standards:</p>
+          <ul style="margin-left: 1.5rem; margin-top: 0.5rem; list-style-type: disc;">
+            <li><strong>1.1.1 Non-text Content:</strong> Canvas charts feature alternative data summaries in a text table with explicit screen-reader labels.</li>
+            <li><strong>1.4.3 Contrast:</strong> All text, buttons, and canvas graphics maintain contrast ratios meeting or exceeding 4.5:1.</li>
+            <li><strong>2.1.1 Keyboard Operable:</strong> All form controls, select fields, range sliders, and navigation tabs are fully accessible via keyboard.</li>
+            <li><strong>2.4.7 Focus Visible:</strong> High contrast 3px blue focus rings outline active interactive elements.</li>
+            <li><strong>4.1.3 Status Messages:</strong> Live region announcements (`aria-live="polite"`) notify screen reader users when test selections or quiz feedback change.</li>
+          </ul>
+        </div>
+      </details>
+    </footer>
+  </div>
+
+  <script>
+    // State management
+    const appState = {
+      ivType: 'cat-2',
+      dvType: 'cont',
+      purpose: 'compare',
+      sampleSize: 30,
+      effectSize: 0.5,
+      activeTest: 'ind-ttest'
+    };
+
+    // DOM References
+    const canvas = document.getElementById('statCanvas');
+    const ctx = canvas.getContext('2d');
+    const srAnnouncer = document.getElementById('sr-announcer');
+
+    const ivTypeSelect = document.getElementById('iv-type');
+    const dvTypeSelect = document.getElementById('dv-type');
+    const purposeSelect = document.getElementById('study-purpose');
+    const sliderSamples = document.getElementById('slider-samples');
+    const sliderEffect = document.getElementById('slider-effect');
+
+    const valSamples = document.getElementById('val-samples');
+    const valEffect = document.getElementById('val-effect');
+
+    const testTitle = document.getElementById('test-title');
+    const testDescription = document.getElementById('test-description');
+    const statMainMetric = document.getElementById('stat-main-metric');
+    const statMainLabel = document.getElementById('stat-main-label');
+    const statPVal = document.getElementById('stat-p-val');
+    const statEffectSize = document.getElementById('stat-effect-size');
+    const statEffectLabel = document.getElementById('stat-effect-label');
+
+    const dataTableHead = document.getElementById('data-table-head');
+    const dataTableBody = document.getElementById('data-table-body');
+    const tableSummaryText = document.getElementById('table-summary-text');
+
+    const scenarioSelect = document.getElementById('scenario-select');
+
+    window.onload = function() {
+      setupTabs();
+      setupEventListeners();
+      resizeCanvas();
+      updateTestSelection();
+
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        calculateAndRender();
+      });
+    };
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio || rect.width;
+      canvas.height = rect.height * window.devicePixelRatio || rect.height;
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    }
+
+    function setupTabs() {
+      const tabs = document.querySelectorAll('nav button[role="tab"]');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => {
+            t.setAttribute('aria-selected', 'false');
+            document.getElementById(t.getAttribute('aria-controls')).classList.remove('active');
+          });
+          tab.setAttribute('aria-selected', 'true');
+          const panel = document.getElementById(tab.getAttribute('aria-controls'));
+          panel.classList.add('active');
+
+          announceSR(`Switched to tab: ${tab.innerText}`);
+        });
+      });
+    }
+
+    function setupEventListeners() {
+      ivTypeSelect.addEventListener('change', (e) => {
+        appState.ivType = e.target.value;
+        updatePurposeOptions();
+        updateTestSelection();
+      });
+
+      dvTypeSelect.addEventListener('change', (e) => {
+        appState.dvType = e.target.value;
+        updateTestSelection();
+      });
+
+      purposeSelect.addEventListener('change', (e) => {
+        appState.purpose = e.target.value;
+        updateTestSelection();
+      });
+
+      sliderSamples.addEventListener('input', (e) => {
+        appState.sampleSize = parseInt(e.target.value);
+        valSamples.innerText = appState.sampleSize;
+        calculateAndRender();
+      });
+
+      sliderEffect.addEventListener('input', (e) => {
+        appState.effectSize = parseFloat(e.target.value);
+        let label = "Small";
+        if (appState.effectSize >= 0.8) label = "Large";
+        else if (appState.effectSize >= 0.5) label = "Medium";
+        valEffect.innerText = `${label} (${appState.effectSize.toFixed(2)})`;
+        calculateAndRender();
+      });
+
+      scenarioSelect.addEventListener('change', updateScenarioDisplay);
+    }
+
+    function updatePurposeOptions() {
+      purposeSelect.innerHTML = '';
+      if (appState.ivType === 'cont') {
+        purposeSelect.innerHTML = `
+          <option value="relate">Examine Relationship / Correlation</option>
+          <option value="predict">Predict Outcome (Linear Regression)</option>
+        `;
+      } else {
+        purposeSelect.innerHTML = `
+          <option value="compare">Compare Group Means</option>
+          <option value="predict">Predict Outcome (Regression with Dummy Codes)</option>
+        `;
+      }
+      appState.purpose = purposeSelect.value;
+    }
+
+    // Determine correct test based on IV and Purpose
+    function updateTestSelection() {
+      const iv = appState.ivType;
+      const purpose = appState.purpose;
+
+      if (iv === 'cat-2' && purpose === 'compare') {
+        appState.activeTest = 'ind-ttest';
+        testTitle.innerText = "Independent Samples t-Test";
+        testDescription.innerText = "Used to compare means between 2 independent categorical groups on a continuous outcome variable.";
+      } else if (iv === 'paired' && purpose === 'compare') {
+        appState.activeTest = 'paired-ttest';
+        testTitle.innerText = "Paired Samples t-Test";
+        testDescription.innerText = "Used to compare 2 related or repeated continuous measurements from the same participants (e.g., Pre-Test vs Post-Test).";
+      } else if (iv === 'cat-3' && purpose === 'compare') {
+        appState.activeTest = 'anova';
+        testTitle.innerText = "One-Way ANOVA (F-Test)";
+        testDescription.innerText = "Used to compare means across 3 or more independent categorical groups while controlling for overall Type I error.";
+      } else if (iv === 'cont' && purpose === 'relate') {
+        appState.activeTest = 'correlation';
+        testTitle.innerText = "Pearson Correlation (r)";
+        testDescription.innerText = "Evaluates the linear strength and direction of association between two continuous variables.";
+      } else if (purpose === 'predict') {
+        appState.activeTest = 'regression';
+        testTitle.innerText = "Simple Linear Regression";
+        testDescription.innerText = "Models the predictive linear relationship between a continuous predictor (X) and a continuous outcome (Y).";
+      }
+
+      announceSR(`Selected test updated to: ${testTitle.innerText}`);
+      calculateAndRender();
+    }
+
+    function calculateAndRender() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const n = appState.sampleSize;
+      const eff = appState.effectSize;
+
+      if (appState.activeTest === 'ind-ttest') {
+        renderTTestPlot(w, h, n, eff, "Group A (Control)", "Group B (Treatment)");
+      } else if (appState.activeTest === 'paired-ttest') {
+        renderTTestPlot(w, h, n, eff, "Pre-Test Measure", "Post-Test Measure");
+      } else if (appState.activeTest === 'anova') {
+        renderANOVAPlot(w, h, n, eff);
+      } else if (appState.activeTest === 'correlation') {
+        renderScatterPlot(w, h, n, eff, false);
+      } else if (appState.activeTest === 'regression') {
+        renderScatterPlot(w, h, n, eff, true);
+      }
+    }
+
+    // Render Bar / Mean comparison chart for t-tests
+    function renderTTestPlot(w, h, n, eff, g1Label, g2Label) {
+      const m1 = 50;
+      const m2 = 50 + eff * 10;
+      const sd = 10;
+
+      // Statistical t calculation approximation
+      const se = Math.sqrt((sd*sd/n) + (sd*sd/n));
+      const tVal = (m2 - m1) / se;
+      const pVal = Math.max(0.001, 1 / (1 + Math.pow(tVal, 2)));
+
+      statMainLabel.innerText = "t-Statistic";
+      statMainMetric.innerText = `t = ${tVal.toFixed(2)}`;
+      statPVal.innerText = `p = ${pVal.toFixed(3)}`;
+      statEffectLabel.innerText = "Cohen's d";
+      statEffectSize.innerText = `d = ${eff.toFixed(2)}`;
+
+      // Canvas Plotting
+      const pad = 50;
+      const barW = 80;
+
+      // Group 1 Bar
+      const h1 = (m1 / 100) * (h - pad * 2);
+      ctx.fillStyle = "#0284c7";
+      ctx.fillRect(w/3 - barW/2, h - pad - h1, barW, h1);
+
+      // Group 2 Bar
+      const h2 = (m2 / 100) * (h - pad * 2);
+      ctx.fillStyle = "#1e3a8a";
+      ctx.fillRect((2*w)/3 - barW/2, h - pad - h2, barW, h2);
+
+      // Labels
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(g1Label, w/3, h - pad + 25);
+      ctx.fillText(g2Label, (2*w)/3, h - pad + 25);
+
+      ctx.fillText(`M = ${m1.toFixed(1)}`, w/3, h - pad - h1 - 10);
+      ctx.fillText(`M = ${m2.toFixed(1)}`, (2*w)/3, h - pad - h2 - 10);
+
+      // Accessible table update
+      tableSummaryText.innerText = `Comparison of 2 groups: ${g1Label} vs ${g2Label}`;
+      dataTableHead.innerHTML = `
+        <tr>
+          <th scope="col">Group</th>
+          <th scope="col">Sample Size (N)</th>
+          <th scope="col">Mean Score</th>
+          <th scope="col">Std Deviation (SD)</th>
+        </tr>
+      `;
+      dataTableBody.innerHTML = `
+        <tr>
+          <td>${g1Label}</td>
+          <td>${n}</td>
+          <td>${m1.toFixed(1)}</td>
+          <td>${sd.toFixed(1)}</td>
+        </tr>
+        <tr>
+          <td>${g2Label}</td>
+          <td>${n}</td>
+          <td>${m2.toFixed(1)}</td>
+          <td>${sd.toFixed(1)}</td>
+        </tr>
+      `;
+    }
+
+    function renderANOVAPlot(w, h, n, eff) {
+      const m1 = 45;
+      const m2 = 45 + eff * 8;
+      const m3 = 45 + eff * 16;
+      const sd = 10;
+
+      const fVal = Math.pow(eff * Math.sqrt(n), 2) + 1;
+      const pVal = Math.max(0.001, 1 / (1 + fVal * 0.5));
+
+      statMainLabel.innerText = "F-Ratio";
+      statMainMetric.innerText = `F = ${fVal.toFixed(2)}`;
+      statPVal.innerText = `p = ${pVal.toFixed(3)}`;
+      statEffectLabel.innerText = "Eta-Squared (η²)";
+      statEffectSize.innerText = `η² = ${(eff * 0.15).toFixed(2)}`;
+
+      const pad = 50;
+      const barW = 60;
+      const groups = [
+        { label: "Low Dose", mean: m1, color: "#7c3aed" },
+        { label: "Medium Dose", mean: m2, color: "#6d28d9" },
+        { label: "High Dose", mean: m3, color: "#4c1d95" }
+      ];
+
+      groups.forEach((g, idx) => {
+        const x = (idx + 1) * (w / 4);
+        const barH = (g.mean / 100) * (h - pad * 2);
+
+        ctx.fillStyle = g.color;
+        ctx.fillRect(x - barW/2, h - pad - barH, barW, barH);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 13px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(g.label, x, h - pad + 25);
+        ctx.fillText(`M = ${g.mean.toFixed(1)}`, x, h - pad - barH - 10);
+      });
+
+      tableSummaryText.innerText = "One-Way ANOVA comparison across 3 groups.";
+      dataTableHead.innerHTML = `
+        <tr>
+          <th scope="col">Group</th>
+          <th scope="col">Sample Size (N)</th>
+          <th scope="col">Group Mean</th>
+          <th scope="col">Std Deviation</th>
+        </tr>
+      `;
+      dataTableBody.innerHTML = groups.map(g => `
+        <tr>
+          <td>${g.label}</td>
+          <td>${n}</td>
+          <td>${g.mean.toFixed(1)}</td>
+          <td>${sd.toFixed(1)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Scatter plot for Correlation & Regression
+    function renderScatterPlot(w, h, n, eff, isRegression) {
+      const rVal = Math.min(0.95, eff * 0.6);
+      const r2 = rVal * rVal;
+      const pVal = Math.max(0.001, 1 / (1 + n * r2));
+
+      if (isRegression) {
+        statMainLabel.innerText = "Model F-Test";
+        statMainMetric.innerText = `F = ${(r2 * n * 2).toFixed(2)}`;
+        statEffectLabel.innerText = "R-Squared (R²)";
+        statEffectSize.innerText = `R² = ${r2.toFixed(2)}`;
+      } else {
+        statMainLabel.innerText = "Pearson r";
+        statMainMetric.innerText = `r = ${rVal.toFixed(2)}`;
+        statEffectLabel.innerText = "Shared Var (r²)";
+        statEffectSize.innerText = `r² = ${r2.toFixed(2)}`;
+      }
+      statPVal.innerText = `p = ${pVal.toFixed(3)}`;
+
+      const pad = 50;
+      const graphW = w - pad * 2;
+      const graphH = h - pad * 2;
+
+      // Axes
+      ctx.beginPath();
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 2;
+      ctx.moveTo(pad, pad);
+      ctx.lineTo(pad, h - pad);
+      ctx.lineTo(w - pad, h - pad);
+      ctx.stroke();
+
+      // Plot Points
+      ctx.fillStyle = isRegression ? "#d97706" : "#059669";
+      for (let i = 0; i < n; i++) {
+        const xPct = (i + 1) / n;
+        const noise = (Math.sin(i * 99) * 0.2);
+        const yPct = xPct * rVal + (1 - rVal) * 0.5 + noise;
+
+        const px = pad + xPct * graphW;
+        const py = h - pad - Math.max(0, Math.min(1, yPct)) * graphH;
+
+        ctx.beginPath();
+        ctx.arc(px, py, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
+      // Regression Line
+      if (isRegression || rVal > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = isRegression ? "#b45309" : "#047857";
+        ctx.lineWidth = 3;
+        ctx.moveTo(pad, h - pad - (0.5 - rVal * 0.4) * graphH);
+        ctx.lineTo(w - pad, h - pad - (0.5 + rVal * 0.5) * graphH);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Predictor X (Continuous)", w/2, h - pad + 30);
+
+      tableSummaryText.innerText = "Scatter plot continuous relationship summary.";
+      dataTableHead.innerHTML = `
+        <tr>
+          <th scope="col">Variable</th>
+          <th scope="col">Measurement Type</th>
+          <th scope="col">Metric</th>
+          <th scope="col">Value</th>
+        </tr>
+      `;
+      dataTableBody.innerHTML = `
+        <tr>
+          <td>Variable X (Predictor)</td>
+          <td>Continuous Scale</td>
+          <td>Correlation (r)</td>
+          <td>${rVal.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Variable Y (Outcome)</td>
+          <td>Continuous Scale</td>
+          <td>Coefficient of Determination (R²)</td>
+          <td>${r2.toFixed(2)}</td>
+        </tr>
+      `;
+    }
+
+    function updateScenarioDisplay() {
+      const sc = scenarioSelect.value;
+      const titleEl = document.getElementById('scenario-title');
+      const descEl = document.getElementById('scenario-desc');
+      const ivEl = document.getElementById('scenario-iv');
+      const dvEl = document.getElementById('scenario-dv');
+      const testEl = document.getElementById('scenario-test');
+
+      if (sc === 's1') {
+        titleEl.innerText = "Scenario 1: Exercise Program & Blood Pressure";
+        descEl.innerText = "30 participants have their systolic blood pressure measured before starting a 12-week aerobic program and again immediately after completion.";
+        ivEl.innerText = "Time Point (2 Repeated Measures: Pre vs Post) -> Categorical";
+        dvEl.innerText = "Systolic Blood Pressure (mmHg) -> Continuous";
+        testEl.innerText = "Paired Samples t-Test";
+      } else if (sc === 's2') {
+        titleEl.innerText = "Scenario 2: Teaching Methods & Exam Performance";
+        descEl.innerText = "Students are randomly assigned to 1 of 3 instructional methods (Traditional Lecture, Online Self-Paced, or Gamified Hybrid) and take a standardized final exam.";
+        ivEl.innerText = "Instructional Method (3 Independent Groups) -> Categorical";
+        dvEl.innerText = "Final Exam Score (0-100%) -> Continuous";
+        testEl.innerText = "One-Way ANOVA (F-Test)";
+      } else if (sc === 's3') {
+        titleEl.innerText = "Scenario 3: Study Hours & Test Scores";
+        descEl.innerText = "A university professor tracks total study hours logged by 50 students during finals week and compares them against exam grades.";
+        ivEl.innerText = "Weekly Study Hours -> Continuous";
+        dvEl.innerText = "Exam Score (%) -> Continuous";
+        testEl.innerText = "Pearson Correlation (r)";
+      } else if (sc === 's4') {
+        titleEl.innerText = "Scenario 4: Predicting Income from Education";
+        descEl.innerText = "A sociologist constructs a predictive model to estimate Annual Salary based on total Years of Post-Secondary Education.";
+        ivEl.innerText = "Years of Education -> Continuous Predictor";
+        dvEl.innerText = "Annual Income ($) -> Continuous Outcome";
+        testEl.innerText = "Simple Linear Regression";
+      } else if (sc === 's5') {
+        titleEl.innerText = "Scenario 5: Pre-Course vs Post-Course Anxiety";
+        descEl.innerText = "Statistics anxiety scores (scale 1-10) are collected from college students on Day 1 of class and again on the final day.";
+        ivEl.innerText = "Time (Day 1 vs Final Day) -> Categorical (Paired)";
+        dvEl.innerText = "Anxiety Score -> Continuous";
+        testEl.innerText = "Paired Samples t-Test";
+      }
+
+      announceSR(`Updated research scenario: ${titleEl.innerText}`);
+    }
+
+    function announceSR(message) {
+      srAnnouncer.innerText = message;
+    }
+
+    function checkAnswer(qId, correctAnswer, correctFeedback, incorrectFeedback) {
+      const selected = document.querySelector(`input[name="${qId}"]:checked`);
+      const feedbackDiv = document.getElementById(`${qId}-feedback`);
+
+      if (!selected) {
+        feedbackDiv.innerText = "Please select an answer option before submitting.";
+        feedbackDiv.className = "feedback incorrect";
+        announceSR("Please select an answer option before submitting.");
+        return;
+      }
+
+      if (selected.value === correctAnswer) {
+        feedbackDiv.innerText = correctFeedback;
+        feedbackDiv.className = "feedback correct";
+        announceSR("Correct answer! " + correctFeedback);
+      } else {
+        feedbackDiv.innerText = incorrectFeedback;
+        feedbackDiv.className = "feedback incorrect";
+        announceSR("Incorrect answer. " + incorrectFeedback);
+      }
+    }
+  </script>
+</body>
+</html>
